@@ -587,8 +587,8 @@ cache_access(struct cache_t *cp,	/* cache to access */
             repl = cp->sets[set].way_tail;
             update_way_list(&cp->sets[set], repl, Head);
             break;
-        case RWP: /* RWP miss */
-            if (cmd == Read){
+        case RWP:
+            if (cmd == Write){ /* write miss */
                 if (cp->sets[set].current_dirty_lines_num < /* fewer dirty lines */
                     cp->sets[set].predicted_dirty_partition_size){
                     /* picks the LRU line from clean partition*/
@@ -599,9 +599,10 @@ cache_access(struct cache_t *cp,	/* cache to access */
                         }
                         repl = repl->way_prev;
                     }
-                    if (repl != NULL){
-                        repl->status = CACHE_BLK_DIRTY;
+                    if (repl == NULL){
+                        repl = cp->sets[set].way_tail;
                     }
+                    repl->status = CACHE_BLK_DIRTY;
                     cp->sets[set].current_dirty_lines_num ++; /* increase dirty lines num */
                 }
                 else {
@@ -613,9 +614,12 @@ cache_access(struct cache_t *cp,	/* cache to access */
                         }
                         repl = repl->way_prev;
                     }
+                    if (repl == NULL){
+                        repl = cp->sets[set].way_tail;
+                    }
                 }
             }
-            else{ /* write miss */
+            else{ /* read miss */
                 if (cp->sets[set].current_dirty_lines_num > /* more dirty lines */
                     cp->sets[set].predicted_dirty_partition_size){
                     /* picks the LRU line from dirty partition*/
@@ -626,11 +630,11 @@ cache_access(struct cache_t *cp,	/* cache to access */
                         }
                         repl = repl->way_prev;
                     }
-                    if (repl != NULL){
-                        repl->status = CACHE_BLK_VALID;
+                    if (repl == NULL){
+                        repl = cp->sets[set].way_tail;
                     }
+                    repl->status = CACHE_BLK_VALID;
                     cp->sets[set].current_dirty_lines_num --; /* decrease dirty lines num */
-                    
                 }
                 else {
                     /* picks the LRU line from the clean partition */
@@ -641,13 +645,12 @@ cache_access(struct cache_t *cp,	/* cache to access */
                         }
                         repl = repl->way_prev;
                     }
+                    if (repl == NULL){
+                        repl = cp->sets[set].way_tail;
+                    }
                 }
             }
-            
-            if (repl == NULL){
-                repl = cp->sets[set].way_tail;
-            }
-            update_way_list(&cp->sets[set], repl, Head);
+            update_way_list(&cp->sets[set], repl, Head); /* put to MSU */
             break;
         case Random:
         {
@@ -813,8 +816,20 @@ cache_fast_hit: /* fast hit handler */
     }
     
     /* update dirty status */
+    /* RWP */
     if (cmd == Write)
+    {
+        if (blk->status != CACHE_BLK_DIRTY)
+            cp->sets[set].current_dirty_lines_num++;
         blk->status |= CACHE_BLK_DIRTY;
+    }
+    else {
+        if (blk->status == CACHE_BLK_DIRTY){
+            cp->sets[set].current_dirty_lines_num--;
+        }
+    }
+
+    
     
     /* this block hit last, no change in the way list */
     

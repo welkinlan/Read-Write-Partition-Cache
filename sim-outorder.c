@@ -767,7 +767,7 @@ sim_reg_options(struct opt_odb_t *odb)
     
     opt_reg_string(odb, "-cache:dl2",
                    "l2 data cache config, i.e., {<config>|none}",
-                   &cache_dl2_opt, "ul2:1024:64:16:p", /* RWP: for LLC: change assoc to 16; change replacement strategy to RWP */
+                   &cache_dl2_opt, "ul2:1024:64:4:p", /* RWP default setting for LLC */
                    /* print */TRUE, NULL);
     
     opt_reg_int(odb, "-cache:dl2lat",
